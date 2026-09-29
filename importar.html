@@ -1,0 +1,41 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Importar lista</title>
+<style>body{font:15px sans-serif;max-width:640px;margin:20px auto;padding:0 16px}textarea{width:100%;height:260px}button{padding:10px 18px;font-size:15px}#msg{margin-top:12px;white-space:pre-wrap}</style>
+</head><body>
+<h2>Importar lista (temporal)</h2>
+<p>Debes haber entrado antes en la app principal con la contraseña. Pega aquí el JSON y pulsa Importar.</p>
+<textarea id="json" placeholder='[{"name":"...","qty":"","store":"mercadona","done":false}, ...]'></textarea><br>
+<button id="go" disabled>Importar</button>
+<div id="msg">Comprobando sesión…</div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+firebase.initializeApp(window.FIREBASE_CONFIG);
+var fs=firebase.firestore(), msg=document.getElementById("msg"), go=document.getElementById("go");
+firebase.auth().onAuthStateChanged(function(u){
+  if(u){ msg.textContent="Sesión iniciada. Listo."; go.disabled=false; }
+  else { msg.textContent="No has iniciado sesión. Abre primero la app principal y entra."; go.disabled=true; }
+});
+go.addEventListener("click",async function(){
+  var items;
+  try{ items=JSON.parse(document.getElementById("json").value); if(!Array.isArray(items)) throw 0; }
+  catch(e){ msg.textContent="JSON no válido."; return; }
+  go.disabled=true;
+  try{
+    var col=fs.collection("items");
+    var existing=await col.limit(1).get();
+    if(!existing.empty && !confirm("Ya hay productos en la lista. ¿Importar igualmente (se duplicarán)?")){ go.disabled=false; msg.textContent="Cancelado."; return; }
+    var base=Date.now(), batch=fs.batch();
+    items.forEach(function(it,i){
+      batch.set(col.doc(), {
+        name:String(it.name||"").slice(0,80), qty:String(it.qty||"").slice(0,60),
+        store:it.store||"otros", done:!!it.done, addedBy:"", createdAt:base+i
+      });
+    });
+    await batch.commit();
+    msg.textContent="Importados "+items.length+" productos. Ya puedes cerrar esta página.";
+  }catch(e){ console.error(e); msg.textContent="Error: "+(e.code||e.message); go.disabled=false; }
+});
+</script></body></html>
