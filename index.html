@@ -1,5 +1,8 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Lista de la Compra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
   :root{
     --ground:#F6F4EC;
@@ -60,7 +63,6 @@
     font-family:"Fraunces";
     src:local("Fraunces");
   }
-  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap');
 
   *{box-sizing:border-box;}
   body{
@@ -409,11 +411,60 @@
 
   [hidden]{ display:none !important; }
 
+  .gate{
+    position:fixed; inset:0; z-index:20;
+    background:var(--ground);
+    display:flex; align-items:center; justify-content:center;
+    padding:16px;
+  }
+  .gate form{
+    width:100%; max-width:360px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .gate input{
+    border:1.5px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    border-radius:var(--radius);
+    padding:12px 14px;
+    font-size:16px;
+    font-family:inherit;
+  }
+  .gate input:focus{ outline:2px solid var(--primary); outline-offset:1px; border-color:transparent; }
+  .gate button{
+    background:var(--primary);
+    color:var(--primary-ink);
+    border:none;
+    border-radius:var(--radius);
+    padding:13px;
+    font-size:15px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  .gate button:disabled{ opacity:0.5; cursor:default; }
+  .gate .gate-error{ color:var(--danger); font-size:13px; min-height:18px; margin:0; }
+  .logout-btn{
+    border:none; background:transparent; color:var(--ink-soft);
+    font-family:inherit; font-size:12.5px; text-decoration:underline; cursor:pointer; padding:0;
+  }
+
   @media (prefers-reduced-motion: no-preference){
     li.item{ animation: rise .18s ease-out; }
     @keyframes rise{ from{ opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
   }
 </style>
+
+<div class="gate" id="gate" hidden>
+  <form id="gateForm" autocomplete="on">
+    <p class="eyebrow">Compra compartida</p>
+    <h1>La Compra</h1>
+    <input type="text" id="gateName" placeholder="Tu nombre" maxlength="30" autocomplete="nickname" required />
+    <input type="password" id="gatePass" placeholder="Contraseña" autocomplete="current-password" required />
+    <p class="gate-error" id="gateError" role="alert"></p>
+    <button type="submit" id="gateBtn">Entrar</button>
+  </form>
+</div>
 
 <header>
   <p class="eyebrow">Compra compartida</p>
@@ -454,9 +505,14 @@
 
 <footer>
   <span id="countSummary"></span>
+  <button class="logout-btn" id="logoutBtn" type="button" hidden>Salir</button>
   <button class="clear-btn" id="clearDoneBtn" hidden>Quitar marcados</button>
 </footer>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script>
 (function(){
   "use strict";
@@ -477,18 +533,18 @@
   }
 
   var state = {
-    items: [],          // {id, name, qty, store, done, addedById, createdAt}
+    items: [],          // {id, name, qty, store, done, addedBy, createdAt}
     selectedStore: "mercadona",
     filterStore: "all",  // "all" | store id
     onlyMarked: false,
-    profiles: {},        // id -> name
-    myId: null,
+    myName: "",
     connected: false
   };
 
-  var db = null;
-  var user = null;
+  var auth = null;
+  var fs = null;
   var itemsCol = null;
+  var unsubscribe = null;
 
   var els = {
     statusDot: document.getElementById("statusDot"),
@@ -504,7 +560,14 @@
     emptyState: document.getElementById("emptyState"),
     filterEmptyState: document.getElementById("filterEmptyState"),
     countSummary: document.getElementById("countSummary"),
-    clearDoneBtn: document.getElementById("clearDoneBtn")
+    clearDoneBtn: document.getElementById("clearDoneBtn"),
+    gate: document.getElementById("gate"),
+    gateForm: document.getElementById("gateForm"),
+    gateName: document.getElementById("gateName"),
+    gatePass: document.getElementById("gatePass"),
+    gateError: document.getElementById("gateError"),
+    gateBtn: document.getElementById("gateBtn"),
+    logoutBtn: document.getElementById("logoutBtn")
   };
 
   function setStatus(connected, text){
@@ -644,7 +707,7 @@
         });
         main.appendChild(name);
 
-        var who = state.profiles[it.addedById];
+        var who = it.addedBy;
         if (who){
           var whoEl = document.createElement("span");
           whoEl.className = "who";
@@ -714,7 +777,7 @@
       qty: (units || "").trim(),
       store: STORE_BY_ID[state.selectedStore] ? state.selectedStore : "otros",
       done: false,
-      addedById: state.myId || null,
+      addedBy: state.myName || "",
       createdAt: Date.now()
     };
     itemsCol.add(data).catch(function(err){
@@ -764,22 +827,6 @@
     });
   }
 
-  // ---------- profile names ----------
-  function resolveProfiles(ids){
-    if (!user || !ids.length) return;
-    user.profiles(ids).then(function(ps){
-      var changed = false;
-      ids.forEach(function(id){
-        var name = ps[id] && ps[id].name;
-        if (name && state.profiles[id] !== name){
-          state.profiles[id] = name;
-          changed = true;
-        }
-      });
-      if (changed) render();
-    }).catch(function(){});
-  }
-
   // ---------- wiring ----------
   els.addForm.addEventListener("submit", function(e){
     e.preventDefault();
@@ -799,60 +846,88 @@
   renderFilterTabs();
   render();
 
+  function showGate(msg){
+    els.gate.hidden = false;
+    els.gateError.textContent = msg || "";
+    els.gateBtn.disabled = false;
+    els.logoutBtn.hidden = true;
+    (els.gateName.value ? els.gatePass : els.gateName).focus();
+  }
+
+  function start(){
+    els.gate.hidden = true;
+    els.logoutBtn.hidden = false;
+    if (unsubscribe) return;
+    itemsCol = fs.collection("items");
+    setStatus(true, "Sincronizada");
+
+    unsubscribe = itemsCol.orderBy("createdAt", "asc").onSnapshot(function(snap){
+      state.items = snap.docs.map(function(d){
+        var data = d.data() || {};
+        return {
+          id: d.id,
+          name: data.name || "",
+          qty: data.qty || "",
+          store: data.store || "",
+          done: !!data.done,
+          marked: !!data.marked,
+          addedBy: data.addedBy || "",
+          createdAt: data.createdAt || 0
+        };
+      });
+      setStatus(true, "Sincronizada");
+      render();
+    }, function(err){
+      console.error("snapshot error", err);
+      setStatus(false, "Conexión perdida. Recarga la página.");
+    });
+  }
+
   function boot(){
-    if (!window.claude || !window.claude.use){
-      setStatus(false, "Vista previa sin conexión en vivo.");
+    var cfg = window.FIREBASE_CONFIG;
+    if (!window.firebase || !cfg || !cfg.apiKey || cfg.apiKey.indexOf("PEGA") === 0){
+      setStatus(false, "Falta configurar Firebase (ver README).");
       return;
     }
+    try { state.myName = localStorage.getItem("compra_nombre") || ""; } catch (e) {}
+    els.gateName.value = state.myName;
 
-    Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function(res){
-      db = res[0];
-      user = res[1];
+    firebase.initializeApp(cfg);
+    auth = firebase.auth();
+    fs = firebase.firestore();
 
-      if (!db){
-        setStatus(false, "No se pudo conectar la lista compartida.");
-        return;
-      }
-      itemsCol = db.collection("items");
-
-      if (user){
-        user.id().then(function(id){ state.myId = id; }).catch(function(){});
-      }
-
-      setStatus(true, "Sincronizada");
-
-      itemsCol.orderBy("createdAt", "asc").onSnapshot(function(snap){
-        var items = snap.docs.map(function(d){
-          var data = d.data() || {};
-          return {
-            id: d.id,
-            name: data.name || "",
-            qty: data.qty || "",
-            store: data.store || "",
-            done: !!data.done,
-            marked: !!data.marked,
-            addedById: data.addedById || null,
-            createdAt: data.createdAt || 0
-          };
-        });
-        state.items = items;
-
-        var unresolved = [];
-        items.forEach(function(it){
-          if (it.addedById && !state.profiles[it.addedById] && unresolved.indexOf(it.addedById) === -1){
-            unresolved.push(it.addedById);
-          }
-        });
-        if (unresolved.length) resolveProfiles(unresolved);
-
-        render();
-      }, function(err){
-        console.error("snapshot error", err);
-        setStatus(false, "Conexión perdida. Recarga la página.");
+    els.gateForm.addEventListener("submit", function(e){
+      e.preventDefault();
+      var nm = els.gateName.value.trim();
+      if (!nm) return;
+      state.myName = nm;
+      try { localStorage.setItem("compra_nombre", nm); } catch (e2) {}
+      els.gateBtn.disabled = true;
+      els.gateError.textContent = "";
+      auth.signInWithEmailAndPassword(cfg.authEmail, els.gatePass.value).catch(function(err){
+        console.error("login failed", err);
+        showGate(err && err.code === "auth/network-request-failed"
+          ? "Sin conexión."
+          : "Contraseña incorrecta.");
       });
-    }).catch(function(err){
-      console.error("capability init failed", err);
-      setStatus(false, "No se pudo conectar la lista compartida.");
+    });
+
+    els.logoutBtn.addEventListener("click", function(){
+      if (unsubscribe){ unsubscribe(); unsubscribe = null; }
+      state.items = [];
+      render();
+      setStatus(false, "Sesión cerrada.");
+      auth.signOut();
+    });
+
+    setStatus(false, "Conectando…");
+    auth.onAuthStateChanged(function(u){
+      if (u){
+        if (!state.myName) return showGate();
+        start();
+      } else {
+        showGate();
+      }
     });
   }
 
