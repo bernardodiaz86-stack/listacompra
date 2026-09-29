@@ -459,7 +459,7 @@
   <form id="gateForm" autocomplete="on">
     <p class="eyebrow">Compra compartida</p>
     <h1>La Compra</h1>
-    <input type="text" id="gateName" placeholder="Tu nombre" maxlength="30" autocomplete="nickname" required />
+    <input type="text" id="gateName" placeholder="Tu nombre" maxlength="30" autocomplete="off" name="nombre-lista" required />
     <input type="password" id="gatePass" placeholder="Contraseña" autocomplete="current-password" required />
     <p class="gate-error" id="gateError" role="alert"></p>
     <button type="submit" id="gateBtn">Entrar</button>
@@ -906,9 +906,15 @@
       els.gateError.textContent = "";
       auth.signInWithEmailAndPassword(cfg.authEmail, els.gatePass.value).catch(function(err){
         console.error("login failed", err);
-        showGate(err && err.code === "auth/network-request-failed"
-          ? "Sin conexión."
-          : "Contraseña incorrecta.");
+        var code = (err && err.code) || "desconocido";
+        var msg = {
+          "auth/network-request-failed": "Sin conexión.",
+          "auth/invalid-credential": "Contraseña incorrecta.",
+          "auth/wrong-password": "Contraseña incorrecta.",
+          "auth/user-not-found": "La cuenta compartida no existe en Firebase.",
+          "auth/too-many-requests": "Demasiados intentos. Espera unos minutos."
+        }[code] || "No se pudo entrar.";
+        showGate(msg + " (" + code + ")");
       });
     });
 
