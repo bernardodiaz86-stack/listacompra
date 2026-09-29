@@ -487,7 +487,7 @@
 
   <button type="button" class="marked-toggle" id="markedToggle" aria-pressed="false">
     <span class="marked-toggle-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-    Solo lo marcado para comprar
+    Solo lo marcado
   </button>
 </header>
 
@@ -634,7 +634,7 @@
 
     var byStore = {};
     items.forEach(function(it){
-      if (state.onlyMarked && !it.marked) return;
+      if (state.onlyMarked && !it.done) return;
       var sid = storeIdFor(it.store);
       (byStore[sid] = byStore[sid] || []).push(it);
     });
@@ -647,7 +647,7 @@
     els.lists.hidden = !hasVisibleItems;
     els.filterEmptyState.hidden = items.length === 0 || hasVisibleItems;
     els.filterEmptyState.querySelector("div:last-child").textContent = state.onlyMarked
-      ? "No hay productos marcados para comprar en esta vista."
+      ? "No hay productos marcados en esta vista."
       : "No hay productos de esta tienda todavía.";
 
     els.markedToggle.setAttribute("aria-pressed", String(state.onlyMarked));
@@ -870,7 +870,6 @@
           qty: data.qty || "",
           store: data.store || "",
           done: !!data.done,
-          marked: !!data.marked,
           addedBy: data.addedBy || "",
           createdAt: data.createdAt || 0
         };
