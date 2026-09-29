@@ -1,0 +1,863 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Lista de la Compra</title>
+<style>
+  :root{
+    --ground:#F6F4EC;
+    --surface:#FFFFFF;
+    --surface-2:#EEEAdc;
+    --ink:#241F1B;
+    --ink-soft:#6B6459;
+    --line:#DBD4C2;
+    --primary:#1F5C52;
+    --primary-ink:#F6F4EC;
+    --accent:#D9A441;
+    --accent-ink:#241F1B;
+    --danger:#B4503C;
+    --store-mercadona:#1F5C52;
+    --store-alimerka:#B4503C;
+    --store-otros:#8A7F63;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(36,31,27,0.06), 0 6px 18px -10px rgba(36,31,27,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#15201B;
+      --surface:#1C2822;
+      --surface-2:#22302A;
+      --ink:#ECE7DA;
+      --ink-soft:#A6A093;
+      --line:#33453C;
+      --primary:#5CAC9B;
+      --primary-ink:#0E1815;
+      --accent:#E8B655;
+      --accent-ink:#241F1B;
+      --danger:#E1806A;
+      --store-mercadona:#5CAC9B;
+      --store-alimerka:#E1806A;
+      --store-otros:#B8AD8E;
+      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 10px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#15201B;
+    --surface:#1C2822;
+    --surface-2:#22302A;
+    --ink:#ECE7DA;
+    --ink-soft:#A6A093;
+    --line:#33453C;
+    --primary:#5CAC9B;
+    --primary-ink:#0E1815;
+    --accent:#E8B655;
+    --accent-ink:#241F1B;
+    --danger:#E1806A;
+    --store-mercadona:#5CAC9B;
+    --store-alimerka:#E1806A;
+    --store-otros:#B8AD8E;
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 10px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  @font-face{
+    font-family:"Fraunces";
+    src:local("Fraunces");
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap');
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:"Karla", -apple-system, "Segoe UI", sans-serif;
+    padding-inline:16px;
+    padding-block:20px 48px;
+    max-width:640px;
+    margin:0 auto;
+  }
+  h1,h2{
+    font-family:"Fraunces", Georgia, serif;
+    font-weight:600;
+    text-wrap:balance;
+    margin:0;
+  }
+  .mono{ font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  header{
+    position:sticky;
+    top:env(safe-area-inset-top, 0px);
+    z-index:5;
+    background:var(--ground);
+    padding-block:6px 14px;
+    margin-bottom:6px;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:0.11em;
+    text-transform:uppercase;
+    color:var(--primary);
+    font-weight:700;
+    margin:0 0 4px;
+  }
+  h1{ font-size:28px; line-height:1.05; }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    margin-top:4px;
+  }
+
+  .status-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:12px;
+    min-height:20px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--primary);
+    flex:none;
+  }
+  .dot.off{ background:var(--line); }
+
+  form.add{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+  }
+  .add input[type="text"]{
+    min-width:0;
+    border:1.5px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    border-radius:var(--radius);
+    padding:12px 14px;
+    font-size:15px;
+    font-family:inherit;
+  }
+  .add #itemInput{ flex:1.3; }
+  .add #unitsInput{ flex:1; }
+  .add input[type="text"]:focus{
+    outline:2px solid var(--primary);
+    outline-offset:1px;
+    border-color:transparent;
+  }
+  .add button{
+    flex:none;
+    background:var(--primary);
+    color:var(--primary-ink);
+    border:none;
+    border-radius:var(--radius);
+    padding:0 18px;
+    font-size:15px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  .add button:active{ transform:translateY(1px); }
+  .add button:disabled{ opacity:0.5; cursor:default; }
+
+  .filter-tabs{
+    display:flex;
+    gap:6px;
+    margin-top:14px;
+    padding:4px;
+    background:var(--surface-2);
+    border-radius:12px;
+  }
+  .filter-tab{
+    flex:1;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    border-radius:9px;
+    padding:8px 6px;
+    font-size:13px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .filter-tab[aria-pressed="true"]{
+    background:var(--surface);
+    color:var(--ink);
+    box-shadow:var(--shadow);
+  }
+  .filter-tab .tab-dot{
+    display:inline-block;
+    width:7px; height:7px;
+    border-radius:50%;
+    margin-right:5px;
+    background:var(--tab-color, var(--ink-soft));
+    vertical-align:middle;
+  }
+  .tabs-hint{
+    margin:6px 2px 0;
+    font-size:11.5px;
+    color:var(--ink-soft);
+  }
+  .tabs-hint b{ color:var(--ink); font-weight:700; }
+
+  .marked-toggle{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:10px;
+    padding:8px 4px;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    font-family:inherit;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .marked-toggle-box{
+    flex:none;
+    width:19px; height:19px;
+    border-radius:6px;
+    border:2px solid var(--line);
+    background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--accent-ink);
+  }
+  .marked-toggle-box svg{ width:12px; height:12px; opacity:0; transition:opacity .12s; }
+  .marked-toggle[aria-pressed="true"]{ color:var(--ink); }
+  .marked-toggle[aria-pressed="true"] .marked-toggle-box{
+    background:var(--accent);
+    border-color:var(--accent);
+  }
+  .marked-toggle[aria-pressed="true"] .marked-toggle-box svg{ opacity:1; }
+
+  main{ margin-top:10px; }
+
+  .empty{
+    text-align:center;
+    padding:48px 20px;
+    color:var(--ink-soft);
+  }
+  .empty .big{ font-size:34px; margin-bottom:6px; }
+
+  section.store-section{ margin-top:24px; }
+  section.store-section:first-child{ margin-top:14px; }
+  .store-header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
+    padding:0 2px 9px;
+    border-bottom:2.5px solid var(--store-color, var(--line));
+  }
+  .store-header h2{
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:var(--store-color, var(--ink));
+  }
+  .store-header .dot-mark{
+    width:9px; height:9px;
+    border-radius:50%;
+    background:var(--store-color, var(--ink-soft));
+    flex:none;
+  }
+  .store-count{
+    font-size:12px;
+    color:var(--ink-soft);
+    font-family:"IBM Plex Mono", monospace;
+  }
+  .store-mercadona{ --store-color: var(--store-mercadona); }
+  .store-alimerka{ --store-color: var(--store-alimerka); }
+  .store-otros{ --store-color: var(--store-otros); }
+  .filter-tab.store-mercadona{ --tab-color: var(--store-mercadona); }
+  .filter-tab.store-alimerka{ --tab-color: var(--store-alimerka); }
+  .filter-tab.store-otros{ --tab-color: var(--store-otros); }
+
+  .col-headers{
+    display:grid;
+    grid-template-columns:24px 1fr minmax(84px,30%) 30px;
+    column-gap:10px;
+    padding:0 2px 6px;
+    font-size:10.5px;
+    letter-spacing:0.07em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    font-weight:700;
+  }
+  .col-headers span:first-child{ grid-column:2; }
+  .col-headers span:last-child{ text-align:left; }
+
+  ul.items{
+    list-style:none;
+    margin:0;
+    padding:0;
+  }
+  li.item{
+    display:grid;
+    grid-template-columns:24px 1fr minmax(84px,30%) 30px;
+    align-items:center;
+    column-gap:10px;
+    padding:11px 2px;
+    border-bottom:1px solid var(--line);
+  }
+  li.item:last-child{ border-bottom:none; }
+
+  .check{
+    width:24px; height:24px;
+    border-radius:8px;
+    border:2px solid var(--line);
+    background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    color:var(--primary-ink);
+  }
+  .check.checked{
+    background:var(--primary);
+    border-color:var(--primary);
+  }
+  .check svg{ width:14px; height:14px; opacity:0; transition:opacity .12s; }
+  .check.checked svg{ opacity:1; }
+
+  .item-main{
+    min-width:0;
+  }
+  .item-name{
+    display:block;
+    width:100%;
+    font-family:inherit;
+    font-size:15px;
+    font-weight:500;
+    color:var(--ink);
+    background:transparent;
+    border:none;
+    border-radius:5px;
+    padding:1px 4px 1px 0;
+    overflow-wrap:anywhere;
+  }
+  .item-name:hover{ background:var(--surface-2); }
+  .item-name:focus{
+    outline:none;
+    background:var(--surface-2);
+    box-shadow:0 0 0 1.5px var(--primary);
+  }
+  li.item.done .item-name{
+    color:var(--ink-soft);
+  }
+  .who{
+    display:block;
+    margin-top:2px;
+    font-size:11px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+  }
+
+  .item-comment{
+    min-width:0;
+    width:100%;
+    font-size:13px;
+    font-family:inherit;
+    font-style:italic;
+    color:var(--ink-soft);
+    background:transparent;
+    border:none;
+    border-left:2px solid var(--line);
+    padding:2px 0 2px 10px;
+  }
+  .item-comment::placeholder{
+    color:var(--line);
+    font-style:italic;
+  }
+  .item-comment:focus{
+    outline:none;
+    border-left-color:var(--primary);
+    color:var(--ink);
+  }
+  .item-comment:hover{ border-left-color:var(--ink-soft); }
+  .del{
+    width:30px; height:30px;
+    border-radius:8px;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .del:hover{ color:var(--danger); background:var(--surface-2); }
+  .del svg{ width:16px; height:16px; }
+
+  footer{
+    margin-top:28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .clear-btn{
+    border:1.5px solid var(--line);
+    background:var(--surface);
+    color:var(--ink-soft);
+    border-radius:10px;
+    padding:7px 12px;
+    font-size:12.5px;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  .clear-btn:hover{ border-color:var(--danger); color:var(--danger); }
+
+  [hidden]{ display:none !important; }
+
+  @media (prefers-reduced-motion: no-preference){
+    li.item{ animation: rise .18s ease-out; }
+    @keyframes rise{ from{ opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+  }
+</style>
+
+<header>
+  <p class="eyebrow">Compra compartida</p>
+  <h1>La Compra</h1>
+  <p class="subtitle">Añadid lo que falte — se actualiza al momento para los dos.</p>
+
+  <div class="status-row" id="statusRow">
+    <span class="dot off" id="statusDot"></span>
+    <span id="statusText">Conectando…</span>
+  </div>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input type="text" id="itemInput" placeholder="Añadir producto…" maxlength="80" />
+    <input type="text" id="unitsInput" placeholder="Comentario" maxlength="60" />
+    <button type="submit" id="addBtn">Añadir</button>
+  </form>
+
+  <div class="filter-tabs" id="filterTabs" role="group" aria-label="Filtrar por tienda y elegir dónde añadir"></div>
+  <p class="tabs-hint" id="tabsHint"></p>
+
+  <button type="button" class="marked-toggle" id="markedToggle" aria-pressed="false">
+    <span class="marked-toggle-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    Solo lo marcado para comprar
+  </button>
+</header>
+
+<main id="main">
+  <div class="empty" id="emptyState" hidden>
+    <div class="big">🧺</div>
+    <div>La lista está vacía.<br>Añadid el primer producto ahí arriba.</div>
+  </div>
+  <div class="empty" id="filterEmptyState" hidden>
+    <div class="big">🔎</div>
+    <div>No hay productos de esta tienda todavía.</div>
+  </div>
+  <div id="lists"></div>
+</main>
+
+<footer>
+  <span id="countSummary"></span>
+  <button class="clear-btn" id="clearDoneBtn" hidden>Quitar marcados</button>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORES = [
+    { id: "mercadona", label: "Mercadona" },
+    { id: "alimerka",  label: "Alimerka" },
+    { id: "otros",     label: "Otras tiendas" }
+  ];
+  var STORE_BY_ID = {};
+  STORES.forEach(function(s){ STORE_BY_ID[s.id] = s; });
+
+  function storeIdFor(name){
+    var norm = (name || "").trim().toLowerCase();
+    if (norm === "mercadona") return "mercadona";
+    if (norm === "alimerka") return "alimerka";
+    return "otros";
+  }
+
+  var state = {
+    items: [],          // {id, name, qty, store, done, addedById, createdAt}
+    selectedStore: "mercadona",
+    filterStore: "all",  // "all" | store id
+    onlyMarked: false,
+    profiles: {},        // id -> name
+    myId: null,
+    connected: false
+  };
+
+  var db = null;
+  var user = null;
+  var itemsCol = null;
+
+  var els = {
+    statusDot: document.getElementById("statusDot"),
+    statusText: document.getElementById("statusText"),
+    addForm: document.getElementById("addForm"),
+    itemInput: document.getElementById("itemInput"),
+    unitsInput: document.getElementById("unitsInput"),
+    addBtn: document.getElementById("addBtn"),
+    filterTabs: document.getElementById("filterTabs"),
+    tabsHint: document.getElementById("tabsHint"),
+    markedToggle: document.getElementById("markedToggle"),
+    lists: document.getElementById("lists"),
+    emptyState: document.getElementById("emptyState"),
+    filterEmptyState: document.getElementById("filterEmptyState"),
+    countSummary: document.getElementById("countSummary"),
+    clearDoneBtn: document.getElementById("clearDoneBtn")
+  };
+
+  function setStatus(connected, text){
+    state.connected = connected;
+    els.statusDot.classList.toggle("off", !connected);
+    els.statusText.textContent = text;
+  }
+
+  function esc(s){
+    var d = document.createElement("div");
+    d.textContent = String(s == null ? "" : s);
+    return d.innerHTML;
+  }
+
+  // ---------- filter tabs (also choose where new items are added) ----------
+  function renderFilterTabs(){
+    els.filterTabs.innerHTML = "";
+
+    var all = document.createElement("button");
+    all.type = "button";
+    all.className = "filter-tab";
+    all.setAttribute("aria-pressed", String(state.filterStore === "all"));
+    all.textContent = "Todas";
+    all.addEventListener("click", function(){
+      state.filterStore = "all";
+      renderFilterTabs();
+      render();
+    });
+    els.filterTabs.appendChild(all);
+
+    STORES.forEach(function(s){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filter-tab store-" + s.id;
+      btn.setAttribute("aria-pressed", String(state.filterStore === s.id));
+      btn.innerHTML = '<span class="tab-dot"></span>' + esc(s.label);
+      btn.addEventListener("click", function(){
+        state.filterStore = s.id;
+        state.selectedStore = s.id;
+        renderFilterTabs();
+        render();
+      });
+      els.filterTabs.appendChild(btn);
+    });
+
+    var targetLabel = STORE_BY_ID[state.selectedStore] ? STORE_BY_ID[state.selectedStore].label : "Otras tiendas";
+    els.tabsHint.innerHTML = "Lo que añadas se guarda en <b>" + esc(targetLabel) + "</b>.";
+  }
+
+  // ---------- rendering the list ----------
+  function render(){
+    var items = state.items;
+    els.emptyState.hidden = items.length > 0;
+
+    // Preserve focus on a name/comment field mid-edit, since the list is rebuilt.
+    var active = document.activeElement;
+    var focusedItemId = null, focusedClass = null, focusedValue = null, focusedSelStart = null, focusedSelEnd = null;
+    if (active && active.classList && (active.classList.contains("item-comment") || active.classList.contains("item-name"))){
+      focusedItemId = active.getAttribute("data-item-id");
+      focusedClass = active.classList.contains("item-name") ? "item-name" : "item-comment";
+      focusedValue = active.value;
+      try { focusedSelStart = active.selectionStart; focusedSelEnd = active.selectionEnd; } catch (e) {}
+    }
+
+    var byStore = {};
+    items.forEach(function(it){
+      if (state.onlyMarked && !it.marked) return;
+      var sid = storeIdFor(it.store);
+      (byStore[sid] = byStore[sid] || []).push(it);
+    });
+
+    var visibleStores = state.filterStore === "all"
+      ? STORES
+      : STORES.filter(function(s){ return s.id === state.filterStore; });
+
+    var hasVisibleItems = visibleStores.some(function(s){ return byStore[s.id] && byStore[s.id].length; });
+    els.lists.hidden = !hasVisibleItems;
+    els.filterEmptyState.hidden = items.length === 0 || hasVisibleItems;
+    els.filterEmptyState.querySelector("div:last-child").textContent = state.onlyMarked
+      ? "No hay productos marcados para comprar en esta vista."
+      : "No hay productos de esta tienda todavía.";
+
+    els.markedToggle.setAttribute("aria-pressed", String(state.onlyMarked));
+
+    els.lists.innerHTML = "";
+    visibleStores.forEach(function(s){
+      var list = byStore[s.id];
+      if (!list || !list.length) return;
+
+      // Keep the original list order (order added), never reordered.
+      list.sort(function(a, b){ return (a.createdAt || 0) - (b.createdAt || 0); });
+
+      var section = document.createElement("section");
+      section.className = "store-section store-" + s.id;
+
+      var pending = list.filter(function(it){ return !it.done; }).length;
+
+      var header = document.createElement("div");
+      header.className = "store-header";
+      header.innerHTML =
+        '<h2><span class="dot-mark"></span>' + esc(s.label) + '</h2>' +
+        '<span class="store-count mono">' + pending + '/' + list.length + '</span>';
+      section.appendChild(header);
+
+      var colHeaders = document.createElement("div");
+      colHeaders.className = "col-headers";
+      colHeaders.innerHTML = '<span>Producto</span><span>Comentario</span>';
+      section.appendChild(colHeaders);
+
+      var ul = document.createElement("ul");
+      ul.className = "items";
+
+      list.forEach(function(it){
+        var li = document.createElement("li");
+        li.className = "item" + (it.done ? " done" : "");
+
+        var check = document.createElement("button");
+        check.type = "button";
+        check.className = "check" + (it.done ? " checked" : "");
+        check.setAttribute("aria-label", it.done ? "Marcar como pendiente" : "Marcar como comprado");
+        check.innerHTML = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        check.addEventListener("click", function(){ toggleDone(it); });
+
+        var main = document.createElement("div");
+        main.className = "item-main";
+        var name = document.createElement("input");
+        name.type = "text";
+        name.className = "item-name";
+        name.maxLength = 80;
+        name.setAttribute("data-item-id", it.id);
+        name.value = it.name;
+        name.addEventListener("keydown", function(e){
+          if (e.key === "Enter"){ name.blur(); }
+        });
+        name.addEventListener("blur", function(){
+          saveName(it, name.value);
+        });
+        main.appendChild(name);
+
+        var who = state.profiles[it.addedById];
+        if (who){
+          var whoEl = document.createElement("span");
+          whoEl.className = "who";
+          whoEl.textContent = who;
+          main.appendChild(whoEl);
+        }
+
+        var comment = document.createElement("input");
+        comment.type = "text";
+        comment.className = "item-comment";
+        comment.placeholder = "Añadir…";
+        comment.maxLength = 60;
+        comment.setAttribute("data-item-id", it.id);
+        comment.value = it.qty || "";
+        comment.addEventListener("keydown", function(e){
+          if (e.key === "Enter"){ comment.blur(); }
+        });
+        comment.addEventListener("blur", function(){
+          saveComment(it, comment.value);
+        });
+
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "del";
+        del.setAttribute("aria-label", "Eliminar " + it.name);
+        del.innerHTML = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.6 8.4a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        del.addEventListener("click", function(){ removeItem(it); });
+
+        li.appendChild(check);
+        li.appendChild(main);
+        li.appendChild(comment);
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+
+      section.appendChild(ul);
+      els.lists.appendChild(section);
+    });
+
+    var visibleItems = visibleStores.reduce(function(acc, s){
+      return acc.concat(byStore[s.id] || []);
+    }, []);
+    var total = visibleItems.length;
+    var done = visibleItems.filter(function(it){ return it.done; }).length;
+    els.countSummary.textContent = total === 0
+      ? ""
+      : (total - done) + " pendiente" + (total - done === 1 ? "" : "s") + " · " + done + " comprado" + (done === 1 ? "" : "s");
+    els.clearDoneBtn.hidden = done === 0;
+
+    if (focusedItemId){
+      var toFocus = els.lists.querySelector('.' + focusedClass + '[data-item-id="' + CSS.escape(focusedItemId) + '"]');
+      if (toFocus){
+        toFocus.value = focusedValue;
+        toFocus.focus();
+        try { toFocus.setSelectionRange(focusedSelStart, focusedSelEnd); } catch (e) {}
+      }
+    }
+  }
+
+  // ---------- db-backed actions ----------
+  function addItem(name, units){
+    name = name.trim();
+    if (!name || !itemsCol) return;
+
+    var data = {
+      name: name,
+      qty: (units || "").trim(),
+      store: STORE_BY_ID[state.selectedStore] ? state.selectedStore : "otros",
+      done: false,
+      addedById: state.myId || null,
+      createdAt: Date.now()
+    };
+    itemsCol.add(data).catch(function(err){
+      console.error("add failed", err);
+    });
+  }
+
+  function toggleDone(item){
+    if (!itemsCol) return;
+    itemsCol.doc(item.id).update({ done: !item.done }).catch(function(err){
+      console.error("toggle failed", err);
+    });
+  }
+
+  function saveComment(item, value){
+    if (!itemsCol) return;
+    value = value.trim();
+    if (value === (item.qty || "")) return;
+    itemsCol.doc(item.id).update({ qty: value }).catch(function(err){
+      console.error("comment save failed", err);
+    });
+  }
+
+  function saveName(item, value){
+    if (!itemsCol) return;
+    value = value.trim();
+    if (!value || value === item.name) { render(); return; }
+    itemsCol.doc(item.id).update({ name: value }).catch(function(err){
+      console.error("name save failed", err);
+    });
+  }
+
+  function removeItem(item){
+    if (!itemsCol) return;
+    itemsCol.doc(item.id).delete().catch(function(err){
+      console.error("delete failed", err);
+    });
+  }
+
+  function clearDone(){
+    if (!itemsCol) return;
+    state.items.filter(function(it){
+      if (!it.done) return false;
+      return state.filterStore === "all" || storeIdFor(it.store) === state.filterStore;
+    }).forEach(function(it){
+      itemsCol.doc(it.id).delete().catch(function(){});
+    });
+  }
+
+  // ---------- profile names ----------
+  function resolveProfiles(ids){
+    if (!user || !ids.length) return;
+    user.profiles(ids).then(function(ps){
+      var changed = false;
+      ids.forEach(function(id){
+        var name = ps[id] && ps[id].name;
+        if (name && state.profiles[id] !== name){
+          state.profiles[id] = name;
+          changed = true;
+        }
+      });
+      if (changed) render();
+    }).catch(function(){});
+  }
+
+  // ---------- wiring ----------
+  els.addForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    addItem(els.itemInput.value, els.unitsInput.value);
+    els.itemInput.value = "";
+    els.unitsInput.value = "";
+    els.itemInput.focus();
+  });
+
+  els.clearDoneBtn.addEventListener("click", clearDone);
+
+  els.markedToggle.addEventListener("click", function(){
+    state.onlyMarked = !state.onlyMarked;
+    render();
+  });
+
+  renderFilterTabs();
+  render();
+
+  function boot(){
+    if (!window.claude || !window.claude.use){
+      setStatus(false, "Vista previa sin conexión en vivo.");
+      return;
+    }
+
+    Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function(res){
+      db = res[0];
+      user = res[1];
+
+      if (!db){
+        setStatus(false, "No se pudo conectar la lista compartida.");
+        return;
+      }
+      itemsCol = db.collection("items");
+
+      if (user){
+        user.id().then(function(id){ state.myId = id; }).catch(function(){});
+      }
+
+      setStatus(true, "Sincronizada");
+
+      itemsCol.orderBy("createdAt", "asc").onSnapshot(function(snap){
+        var items = snap.docs.map(function(d){
+          var data = d.data() || {};
+          return {
+            id: d.id,
+            name: data.name || "",
+            qty: data.qty || "",
+            store: data.store || "",
+            done: !!data.done,
+            marked: !!data.marked,
+            addedById: data.addedById || null,
+            createdAt: data.createdAt || 0
+          };
+        });
+        state.items = items;
+
+        var unresolved = [];
+        items.forEach(function(it){
+          if (it.addedById && !state.profiles[it.addedById] && unresolved.indexOf(it.addedById) === -1){
+            unresolved.push(it.addedById);
+          }
+        });
+        if (unresolved.length) resolveProfiles(unresolved);
+
+        render();
+      }, function(err){
+        console.error("snapshot error", err);
+        setStatus(false, "Conexión perdida. Recarga la página.");
+      });
+    }).catch(function(err){
+      console.error("capability init failed", err);
+      setStatus(false, "No se pudo conectar la lista compartida.");
+    });
+  }
+
+  boot();
+})();
+</script>
+
+</body></html>
