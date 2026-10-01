@@ -1,0 +1,123 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Restaurar productos</title>
+<style>
+body{font:15px sans-serif;max-width:640px;margin:20px auto;padding:0 16px}
+textarea{width:100%;height:140px}
+button{padding:10px 18px;font-size:15px;margin-top:8px}
+#msg{margin:12px 0;white-space:pre-wrap}
+h3{margin:16px 0 4px}
+label{display:block;padding:4px 0}
+</style></head><body>
+<h2>Restaurar productos borrados (temporal)</h2>
+<p>1) Entra antes en la app principal. 2) Pega el JSON original. 3) Pulsa Analizar. 4) Revisa qué falta y restaura.</p>
+<textarea id="json" placeholder='[{"name":"...","qty":"","store":"mercadona","done":false}, ...]'></textarea><br>
+<button id="analyze" disabled>Analizar</button>
+<div id="msg">Comprobando sesión…</div>
+<div id="list"></div>
+<button id="restore" hidden>Restaurar seleccionados</button>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+function keyOf(store, name){ return (store || "otros") + "|" + String(name || "").trim().toLowerCase(); }
+function sortKey(it){ return typeof it.order === "number" ? it.order : (it.createdAt || 0); }
+
+// existing: [{id,name,store,order,createdAt}], original: [{name,qty,store}], selected: Set de claves a restaurar
+// Devuelve, por tienda, la lista final ordenada: {id} (existente) o {item} (nuevo)
+function planRestore(existing, original, selected){
+  var stores = {};
+  existing.forEach(function(e){ (stores[e.store || "otros"] = stores[e.store || "otros"] || []).push(e); });
+  original.forEach(function(o){ stores[o.store || "otros"] = stores[o.store || "otros"] || []; });
+  var out = {};
+  Object.keys(stores).forEach(function(st){
+    var cur = stores[st].slice().sort(function(a, b){ return sortKey(a) - sortKey(b) || (a.createdAt || 0) - (b.createdAt || 0); });
+    var final = cur.map(function(e){ return { key: keyOf(st, e.name), id: e.id }; });
+    var origS = original.filter(function(o){ return (o.store || "otros") === st; });
+    var present = {};
+    final.forEach(function(f){ present[f.key] = true; });
+    origS.forEach(function(o, i){
+      var k = keyOf(st, o.name);
+      if (present[k] || !selected.has(k)) return;
+      var at = 0;
+      for (var j = i - 1; j >= 0; j--){
+        var pk = keyOf(st, origS[j].name);
+        var idx = final.findIndex(function(f){ return f.key === pk; });
+        if (idx !== -1){ at = idx + 1; break; }
+      }
+      final.splice(at, 0, { key: k, item: o });
+      present[k] = true;
+    });
+    out[st] = final;
+  });
+  return out;
+}
+
+if (typeof module !== "undefined") module.exports = { planRestore: planRestore, keyOf: keyOf };
+
+if (typeof firebase !== "undefined"){
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  var fs = firebase.firestore(), msg = document.getElementById("msg");
+  var btnA = document.getElementById("analyze"), btnR = document.getElementById("restore"), listEl = document.getElementById("list");
+  var existing = [], original = [], missing = [];
+
+  firebase.auth().onAuthStateChanged(function(u){
+    if (u){ msg.textContent = "Sesión iniciada. Pega el JSON y pulsa Analizar."; btnA.disabled = false; }
+    else { msg.textContent = "No has iniciado sesión. Abre primero la app principal y entra."; btnA.disabled = true; }
+  });
+
+  btnA.addEventListener("click", async function(){
+    try {
+      original = JSON.parse(document.getElementById("json").value);
+      if (!Array.isArray(original)) throw 0;
+    } catch (e){ msg.textContent = "JSON no válido."; return; }
+    btnA.disabled = true;
+    try {
+      var snap = await fs.collection("items").get();
+      existing = snap.docs.map(function(d){ var x = d.data(); return { id: d.id, name: x.name || "", store: x.store || "otros", order: typeof x.order === "number" ? x.order : null, createdAt: x.createdAt || 0 }; });
+      var have = {};
+      existing.forEach(function(e){ have[keyOf(e.store, e.name)] = true; });
+      missing = original.filter(function(o){ return !have[keyOf(o.store, o.name)]; });
+      msg.textContent = "En la base de datos hay " + existing.length + " productos. De los " + original.length + " originales faltan " + missing.length + ".\n(Desmarca los que borraste a propósito y no quieras recuperar.)";
+      listEl.innerHTML = "";
+      var lastStore = null;
+      missing.forEach(function(o, i){
+        if (o.store !== lastStore){ lastStore = o.store; var h = document.createElement("h3"); h.textContent = o.store; listEl.appendChild(h); }
+        var l = document.createElement("label");
+        l.innerHTML = '<input type="checkbox" checked data-i="' + i + '"> ';
+        l.appendChild(document.createTextNode(o.name + (o.qty ? " — " + o.qty : "")));
+        listEl.appendChild(l);
+      });
+      btnR.hidden = missing.length === 0;
+    } catch (e){ console.error(e); msg.textContent = "Error: " + (e.code || e.message); }
+    btnA.disabled = false;
+  });
+
+  btnR.addEventListener("click", async function(){
+    var selected = new Set();
+    listEl.querySelectorAll("input[type=checkbox]").forEach(function(cb){
+      if (cb.checked){ var o = missing[+cb.getAttribute("data-i")]; selected.add(keyOf(o.store, o.name)); }
+    });
+    if (!selected.size){ msg.textContent = "No hay nada seleccionado."; return; }
+    if (!confirm("¿Restaurar " + selected.size + " productos? Se añadirán sin marcar y los demás conservarán su estado.")) return;
+    btnR.disabled = true;
+    try {
+      var plan = planRestore(existing, original, selected);
+      var col = fs.collection("items"), batch = fs.batch(), now = Date.now(), n = 0;
+      Object.keys(plan).forEach(function(st){
+        plan[st].forEach(function(f, i){
+          var order = (i + 1) * 1000;
+          if (f.id){ batch.update(col.doc(f.id), { order: order }); }
+          else {
+            n++;
+            batch.set(col.doc(), { name: String(f.item.name || "").slice(0, 80), qty: String(f.item.qty || "").slice(0, 60), store: f.item.store || "otros", done: false, addedBy: "", createdAt: now + n, order: order });
+          }
+        });
+      });
+      await batch.commit();
+      msg.textContent = "Restaurados " + n + " productos. Ya puedes cerrar esta página y recargar la app.";
+      btnR.hidden = true; listEl.innerHTML = "";
+    } catch (e){ console.error(e); msg.textContent = "Error: " + (e.code || e.message); btnR.disabled = false; }
+  });
+}
+</script></body></html>
