@@ -209,11 +209,37 @@
   }
   .tabs-hint b{ color:var(--ink); font-weight:700; }
 
+  .filter-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px 12px;
+    margin-top:10px;
+  }
+  .uncheck-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:7px 12px;
+    border:1.5px solid var(--primary);
+    border-radius:999px;
+    background:var(--surface);
+    color:var(--primary);
+    font-family:inherit;
+    font-size:12.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .uncheck-btn svg{ width:14px; height:14px; flex:none; }
+  .uncheck-btn:hover:not(:disabled){ background:var(--primary); color:var(--primary-ink); }
+  .uncheck-btn:disabled{ opacity:0.4; cursor:default; border-color:var(--line); color:var(--ink-soft); }
+
   .marked-toggle{
     display:flex;
     align-items:center;
     gap:8px;
-    margin-top:10px;
+    margin-top:0;
     padding:8px 4px;
     border:none;
     background:transparent;
@@ -507,10 +533,16 @@
   <div class="filter-tabs" id="filterTabs" role="group" aria-label="Filtrar por tienda y elegir dónde añadir"></div>
   <p class="tabs-hint" id="tabsHint"></p>
 
-  <button type="button" class="marked-toggle" id="markedToggle" aria-pressed="false">
-    <span class="marked-toggle-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-    Solo lo marcado
-  </button>
+  <div class="filter-row">
+    <button type="button" class="marked-toggle" id="markedToggle" aria-pressed="false">
+      <span class="marked-toggle-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Solo lo marcado
+    </button>
+    <button type="button" class="uncheck-btn" id="uncheckAllBtn" disabled>
+      <svg viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="uncheckAllLabel">Deseleccionar todo</span>
+    </button>
+  </div>
 </header>
 
 <main id="main">
@@ -581,6 +613,8 @@
     filterTabs: document.getElementById("filterTabs"),
     tabsHint: document.getElementById("tabsHint"),
     markedToggle: document.getElementById("markedToggle"),
+    uncheckAllBtn: document.getElementById("uncheckAllBtn"),
+    uncheckAllLabel: document.getElementById("uncheckAllLabel"),
     lists: document.getElementById("lists"),
     emptyState: document.getElementById("emptyState"),
     filterEmptyState: document.getElementById("filterEmptyState"),
@@ -792,6 +826,8 @@
       ? ""
       : (total - done) + " pendiente" + (total - done === 1 ? "" : "s") + " · " + done + " comprado" + (done === 1 ? "" : "s");
     els.clearDoneBtn.hidden = done === 0;
+    els.uncheckAllBtn.disabled = done === 0;
+    els.uncheckAllLabel.textContent = done === 0 ? "Deseleccionar todo" : "Deseleccionar todo (" + done + ")";
 
     if (focusedItemId){
       var toFocus = els.lists.querySelector('.' + focusedClass + '[data-item-id="' + CSS.escape(focusedItemId) + '"]');
@@ -893,6 +929,23 @@
     });
   }
 
+  function uncheckAll(){
+    if (!fs || !itemsCol) return;
+    var targets = state.items.filter(function(it){
+      if (!it.done) return false;
+      return state.filterStore === "all" || storeIdFor(it.store) === state.filterStore;
+    });
+    if (!targets.length) return;
+    var where = state.filterStore === "all" ? "" : " de " + STORE_BY_ID[state.filterStore].label;
+    if (!window.confirm("¿Deseleccionar " + targets.length + " producto" + (targets.length === 1 ? "" : "s") + where + "? Se desmarcarán para los dos.")) return;
+    var batch = fs.batch();
+    targets.forEach(function(it){ batch.update(itemsCol.doc(it.id), { done: false }); });
+    batch.commit().catch(function(err){
+      console.error("uncheck failed", err);
+      setStatus(false, "No se pudo deseleccionar.");
+    });
+  }
+
   function clearDone(){
     if (!itemsCol) return;
     state.items.filter(function(it){
@@ -913,6 +966,7 @@
   });
 
   els.clearDoneBtn.addEventListener("click", clearDone);
+  els.uncheckAllBtn.addEventListener("click", uncheckAll);
 
   els.markedToggle.addEventListener("click", function(){
     state.onlyMarked = !state.onlyMarked;
