@@ -923,6 +923,8 @@
     if (!targets.length) return;
     var where = state.filterStore === "all" ? "" : " de " + STORE_BY_ID[state.filterStore].label;
     if (!window.confirm("¿Deseleccionar " + targets.length + " producto" + (targets.length === 1 ? "" : "s") + where + "? Se desmarcarán para los dos.")) return;
+    // Con el filtro "Solo lo marcado" activo la lista quedaría vacía y parecería borrada: lo apagamos.
+    if (state.onlyMarked){ state.onlyMarked = false; render(); }
     var batch = fs.batch();
     targets.forEach(function(it){ batch.update(itemsCol.doc(it.id), { done: false }); });
     batch.commit().catch(function(err){
