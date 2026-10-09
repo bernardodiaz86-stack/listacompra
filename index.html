@@ -233,6 +233,7 @@
   }
   .uncheck-btn svg{ width:14px; height:14px; flex:none; }
   .uncheck-btn:hover:not(:disabled){ background:var(--primary); color:var(--primary-ink); }
+  .uncheck-btn.armed{ background:var(--danger); border-color:var(--danger); color:#fff; }
   .uncheck-btn:disabled{ opacity:0.4; cursor:default; border-color:var(--line); color:var(--ink-soft); }
 
   .marked-toggle{
@@ -582,6 +583,9 @@
     myName: "",
     connected: false,
     dragging: false,
+    uncheckArmed: false,
+    uncheckTimer: null,
+    doneCount: 0,
     pendingRender: false
   };
 
@@ -811,8 +815,9 @@
     els.countSummary.textContent = total === 0
       ? ""
       : (total - done) + " pendiente" + (total - done === 1 ? "" : "s") + " · " + done + " comprado" + (done === 1 ? "" : "s");
-    els.uncheckAllBtn.disabled = done === 0;
-    els.uncheckAllLabel.textContent = done === 0 ? "Deseleccionar todo" : "Deseleccionar todo (" + done + ")";
+    state.doneCount = done;
+    if (done === 0) disarmUncheck();
+    updateUncheckBtn();
 
     if (focusedItemId){
       var toFocus = els.lists.querySelector('.' + focusedClass + '[data-item-id="' + CSS.escape(focusedItemId) + '"]');
@@ -914,15 +919,36 @@
     });
   }
 
+  function updateUncheckBtn(){
+    var n = state.doneCount;
+    els.uncheckAllBtn.disabled = n === 0;
+    els.uncheckAllBtn.classList.toggle("armed", state.uncheckArmed);
+    els.uncheckAllLabel.textContent = n === 0
+      ? "Deseleccionar todo"
+      : (state.uncheckArmed ? "¿Seguro? Toca otra vez (" + n + ")" : "Deseleccionar todo (" + n + ")");
+  }
+
+  function disarmUncheck(){
+    state.uncheckArmed = false;
+    if (state.uncheckTimer){ clearTimeout(state.uncheckTimer); state.uncheckTimer = null; }
+    updateUncheckBtn();
+  }
+
+  // Primer toque: arma el botón (4 s). Segundo toque: desmarca. Nunca borra productos.
   function uncheckAll(){
     if (!fs || !itemsCol) return;
+    if (!state.uncheckArmed){
+      state.uncheckArmed = true;
+      state.uncheckTimer = setTimeout(disarmUncheck, 4000);
+      updateUncheckBtn();
+      return;
+    }
+    disarmUncheck();
     var targets = state.items.filter(function(it){
       if (!it.done) return false;
       return state.filterStore === "all" || storeIdFor(it.store) === state.filterStore;
     });
     if (!targets.length) return;
-    var where = state.filterStore === "all" ? "" : " de " + STORE_BY_ID[state.filterStore].label;
-    if (!window.confirm("¿Deseleccionar " + targets.length + " producto" + (targets.length === 1 ? "" : "s") + where + "? Se desmarcarán para los dos.")) return;
     // Con el filtro "Solo lo marcado" activo la lista quedaría vacía y parecería borrada: lo apagamos.
     if (state.onlyMarked){ state.onlyMarked = false; render(); }
     var batch = fs.batch();
